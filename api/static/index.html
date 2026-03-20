@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地基基础分析及选型报告生成</title>
+    <style>
+        :root { --p:#2d8cf0; --p2:#1a6fc9; --bg1:#e8f4fc; --bg2:#f5faff; --text:#333; --muted:#8c8c8c; --line:#d0d0d0; --err:#ff4d4f; --errbg:#fff2f0; --errbd:#ffccc7; }
+        * { box-sizing: border-box; }
+        body { margin:0; min-height:100vh; font-family:"Microsoft YaHei","PingFang SC",sans-serif; background:linear-gradient(180deg,var(--bg1) 0%,#f0f7fc 50%,var(--bg2) 100%); color:var(--text); padding:36px 16px 40px; }
+        .wrap { max-width:580px; margin:0 auto; }
+        .title { margin:0 0 38px; text-align:center; font-size:28px; font-weight:600; color:var(--p); }
+        .steps { display:flex; justify-content:center; align-items:center; margin-bottom:40px; }
+        .step { display:flex; flex-direction:column; align-items:center; }
+        .circle { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:600; border:2px solid var(--line); background:#fff; color:#999; transition:.25s; }
+        .circle.active,.circle.done { background:linear-gradient(135deg,var(--p) 0%,var(--p2) 100%); border-color:var(--p); color:#fff; box-shadow:0 6px 18px rgba(45,140,240,.35); }
+        .circle.done { box-shadow:none; }
+        .label { margin-top:12px; font-size:14px; color:#666; }
+        .line { width:80px; height:2px; background:var(--line); margin:0 14px 24px; }
+        .line.active { background:var(--p); }
+        .card { background:#fff; border-radius:22px; box-shadow:0 14px 44px rgba(15,23,42,.08); padding:30px; margin-bottom:26px; }
+        .template { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 18px; background:#f8fbff; border:1px solid #e8f4fc; border-radius:12px; margin-bottom:22px; font-size:14px; color:#666; }
+        .template a { color:var(--p); text-decoration:none; font-weight:600; }
+        .upload { display:flex; align-items:center; gap:14px; padding:22px 18px; border:2px dashed #d7e3f0; border-radius:14px; background:#fbfdff; cursor:pointer; margin-bottom:20px; }
+        .upload.ready { border-color:var(--p); }
+        .upload svg { width:28px; height:28px; color:var(--p); flex:0 0 auto; }
+        .upload .txt { flex:1; text-align:center; min-width:0; }
+        .upload .t1 { font-size:16px; font-weight:600; margin-bottom:6px; }
+        .upload .t2 { font-size:13px; color:#99a2ad; word-break:break-all; }
+        #fileInput { display:none; }
+        .params { display:none; border:1px solid #d8e3ef; border-radius:14px; padding:20px 18px 4px; margin-bottom:18px; }
+        .q { margin-bottom:18px; }
+        .q .qt { font-size:15px; font-weight:600; margin-bottom:6px; }
+        .q .qh { font-size:13px; color:var(--p); margin-bottom:10px; }
+        .opts { display:flex; gap:22px; flex-wrap:wrap; font-size:14px; }
+        .progress { display:none; margin-bottom:18px; }
+        .barbox { height:9px; background:#e8edf3; border-radius:999px; overflow:hidden; margin-bottom:10px; }
+        .bar { height:100%; width:0%; background:linear-gradient(90deg,var(--p) 0%,#52c41a 100%); transition:width .3s ease; }
+        .ptxt { text-align:center; font-size:14px; color:#666; }
+        .error { display:none; padding:16px; border-radius:10px; border:1px solid var(--errbd); background:var(--errbg); color:var(--err); font-size:14px; text-align:center; margin-bottom:18px; word-break:break-word; }
+        .result { display:none; text-align:center; padding:8px 0 2px; }
+        .result .icon { width:78px; height:78px; margin:0 auto 18px; border-radius:50%; background:#e8f4fc; color:var(--p); display:flex; align-items:center; justify-content:center; }
+        .result h3 { margin:0 0 8px; font-size:20px; }
+        .result p { margin:0 0 20px; font-size:14px; color:#666; }
+        .btn, .dl { border:none; border-radius:14px; cursor:pointer; color:#fff; background:linear-gradient(135deg,var(--p) 0%,var(--p2) 100%); box-shadow:0 10px 26px rgba(45,140,240,.35); }
+        .btn { width:100%; padding:18px; font-size:18px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:12px; }
+        .btn svg { width:20px; height:20px; }
+        .btn small { display:block; font-size:13px; font-weight:400; opacity:.92; margin-top:2px; }
+        .btn:disabled { opacity:.8; cursor:not-allowed; }
+        .dl { padding:14px 32px; font-size:15px; font-weight:600; }
+        .stats { background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.06); padding:18px 20px; margin-top:22px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+        .stats .lv { font-size:14px; color:#666; }
+        .stats .rv { display:flex; align-items:baseline; gap:4px; }
+        .stats .num { font-size:24px; font-weight:600; color:var(--p); }
+        .stats .unit,.stats .more { font-size:13px; color:#8c8c8c; }
+        .stats .more { color:var(--p); margin-left:12px; cursor:pointer; text-decoration:none; }
+        .detail { display:none; margin-top:12px; background:#fff; border-radius:14px; box-shadow:0 8px 24px rgba(15,23,42,.06); padding:16px 18px; font-size:14px; color:#666; line-height:1.8; }
+        .footer { text-align:center; color:#9aa4b2; font-size:12px; margin-top:18px; }
+        .spin { width:20px; height:20px; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:spin .8s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        @media (max-width:640px) { .title{font-size:24px;margin-bottom:28px;} .card{padding:22px 18px;} .line{width:46px;margin:0 8px 24px;} }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1 class="title">地基基础分析及选型报告生成</h1>
+
+        <div class="steps">
+            <div class="step"><div class="circle active" id="step1">01</div><div class="label">上传数据</div></div>
+            <div class="line" id="line1"></div>
+            <div class="step"><div class="circle" id="step2">02</div><div class="label">开始分析</div></div>
+            <div class="line" id="line2"></div>
+            <div class="step"><div class="circle" id="step3">03</div><div class="label">获取结果</div></div>
+        </div>
+
+        <div class="card">
+            <div class="template">
+                <span>首次使用？请先下载数据模板</span>
+                <a href="/api/template">下载模板</a>
+            </div>
+
+            <label class="upload" id="uploadArea" for="fileInput">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                <div class="txt">
+                    <div class="t1" id="uploadTitle">选择 Excel 文件</div>
+                    <div class="t2" id="uploadHint">输入数据模板.xlsx</div>
+                </div>
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            </label>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+
+            <div class="params" id="paramsSection">
+                <div class="q">
+                    <div class="qt">1. 持力层位于地下水位以上吗？</div>
+                    <div class="qh">是：γ=20；否：γ=10</div>
+                    <div class="opts">
+                        <label><input type="radio" name="waterLevel" value="yes" checked> 是</label>
+                        <label><input type="radio" name="waterLevel" value="no"> 否</label>
+                    </div>
+                </div>
+                <div class="q" id="question2" style="display:none;">
+                    <div class="qt">2. 粉土黏粒含量是否 ≥ 10%？</div>
+                    <div class="opts">
+                        <label><input type="radio" name="siltClay" value="yes" checked> 是</label>
+                        <label><input type="radio" name="siltClay" value="no"> 否</label>
+                    </div>
+                </div>
+                <div class="q" id="question3" style="display:none;">
+                    <div class="qt">3. 粉质黏土 e、Il 是否 ≥ 0.85？</div>
+                    <div class="opts">
+                        <label><input type="radio" name="siltyClay" value="yes" checked> 是</label>
+                        <label><input type="radio" name="siltyClay" value="no"> 否</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress" id="progressSection">
+                <div class="barbox"><div class="bar" id="progressBar"></div></div>
+                <div class="ptxt" id="progressText">准备中...</div>
+            </div>
+
+            <div class="error" id="errorBox"></div>
+
+            <div class="result" id="resultSection">
+                <div class="icon">
+                    <svg width="42" height="42" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h3>分析完成</h3>
+                <p>报告已生成，可以直接下载。</p>
+                <button class="dl" id="downloadButton" type="button">下载分析报告</button>
+            </div>
+        </div>
+
+        <button class="btn" id="runButton" type="button">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span>运行分析<small>一键生成分析报告</small></span>
+        </button>
+
+        <div class="stats">
+            <div class="lv">今日分析次数</div>
+            <div class="rv"><span class="num" id="todayCount">-</span><span class="unit">次</span><a class="more" id="toggleDetail">查看详情</a></div>
+        </div>
+        <div class="detail" id="statsDetail">加载中...</div>
+
+        <div class="footer">COPYRIGHT 中建西勘院 科研与信息化部</div>
+        <div class="footer">COPYRIGHT 中建西勘院 文兴漏</div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let currentTaskId = null;
+        let pollInterval = null;
+        let detailVisible = false;
+
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const uploadTitle = document.getElementById('uploadTitle');
+        const uploadHint = document.getElementById('uploadHint');
+        const paramsSection = document.getElementById('paramsSection');
+        const question2 = document.getElementById('question2');
+        const question3 = document.getElementById('question3');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const errorBox = document.getElementById('errorBox');
+        const resultSection = document.getElementById('resultSection');
+        const runButton = document.getElementById('runButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const statsDetail = document.getElementById('statsDetail');
+        const toggleDetail = document.getElementById('toggleDetail');
+
+        async function parseResponsePayload(response) {
+            const text = await response.text();
+            if (!text) return {};
+            const type = response.headers.get('content-type') || '';
+            if (type.includes('application/json')) {
+                try { return JSON.parse(text); } catch (error) { console.error('JSON 解析失败:', error, text); }
+            }
+            return { detail: text, message: text, raw: text };
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            const payload = await parseResponsePayload(response);
+            if (!response.ok) throw new Error(payload.detail || payload.message || `请求失败 (${response.status})`);
+            return payload;
+        }
+
+        function setStep(step) {
+            [1, 2, 3].forEach(i => {
+                const circle = document.getElementById(`step${i}`);
+                circle.classList.remove('active', 'done');
+                if (i < step) circle.classList.add('done');
+                else if (i === step) circle.classList.add('active');
+                const line = document.getElementById(`line${i}`);
+                if (line) line.classList.toggle('active', i < step);
+            });
+        }
+
+        function showError(message) {
+            errorBox.textContent = message;
+            errorBox.style.display = 'block';
+        }
+
+        function hideError() {
+            errorBox.textContent = '';
+            errorBox.style.display = 'none';
+        }
+
+        function renderRunButton(isLoading) {
+            if (isLoading) {
+                runButton.innerHTML = '<div class="spin"></div><span>分析中...</span>';
+                runButton.disabled = true;
+                return;
+            }
+            runButton.innerHTML = `
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>运行分析<small>一键生成分析报告</small></span>
+            `;
+            runButton.disabled = false;
+        }
+
+        function resetToUpload() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+            renderRunButton(false);
+            progressSection.style.display = 'none';
+            resultSection.style.display = 'none';
+            paramsSection.style.display = 'none';
+            progressBar.style.width = '0%';
+            progressText.textContent = '准备中...';
+            setStep(1);
+        }
+
+        function resetApp() {
+            selectedFile = null;
+            currentTaskId = null;
+            fileInput.value = '';
+            uploadTitle.textContent = '选择 Excel 文件';
+            uploadHint.textContent = '输入数据模板.xlsx';
+            uploadArea.classList.remove('ready');
+            question2.style.display = 'none';
+            question3.style.display = 'none';
+            hideError();
+            resetToUpload();
+        }
+
+        async function handleFileSelect(file) {
+            if (!file || !/\.(xlsx|xls)$/i.test(file.name)) {
+                showError('请选择 Excel 文件（.xlsx 或 .xls）');
+                return;
+            }
+            selectedFile = file;
+            uploadTitle.textContent = '已选择文件';
+            uploadHint.textContent = file.name;
+            uploadArea.classList.add('ready');
+            hideError();
+            resultSection.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const data = await fetchJson('/api/precheck', { method: 'POST', body: formData });
+                paramsSection.style.display = 'block';
+                question2.style.display = data.has_silt ? '' : 'none';
+                question3.style.display = data.has_silty_clay ? '' : 'none';
+            } catch (error) {
+                console.error('预检失败:', error);
+                paramsSection.style.display = 'block';
+                question2.style.display = '';
+                question3.style.display = '';
+            }
+        }
+
+        async function startAnalysis() {
+            if (!selectedFile) {
+                showError('请先选择 Excel 文件');
+                return;
+            }
+            hideError();
+            setStep(2);
+            renderRunButton(true);
+            progressSection.style.display = 'block';
+            paramsSection.style.display = 'none';
+            resultSection.style.display = 'none';
+            progressBar.style.width = '12%';
+            progressText.textContent = '正在上传文件...';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('water_level_above', (document.querySelector('input[name="waterLevel"]:checked')?.value || 'yes') === 'yes' ? 'true' : 'false');
+            formData.append('silt_clay_content_ge_10', (document.querySelector('input[name="siltClay"]:checked')?.value || 'yes') === 'yes' ? 'true' : 'false');
+            formData.append('silty_clay_e_il_ge_085', (document.querySelector('input[name="siltyClay"]:checked')?.value || 'yes') === 'yes' ? 'true' : 'false');
+
+            try {
+                const data = await fetchJson('/api/upload', { method: 'POST', body: formData });
+                currentTaskId = data.task_id;
+                progressText.textContent = '任务已创建，正在分析...';
+                startPolling();
+            } catch (error) {
+                showError(error.message);
+                resetToUpload();
+            }
+        }
+
+        function startPolling() {
+            let progress = 18;
+            pollInterval = setInterval(async () => {
+                try {
+                    const data = await fetchJson(`/api/status/${currentTaskId}`);
+                    if (progress < 92) {
+                        progress = Math.min(progress + Math.random() * 10, 92);
+                        progressBar.style.width = `${Math.round(progress)}%`;
+                        progressText.textContent = `分析中... ${Math.round(progress)}%`;
+                    }
+                    if (data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        progressBar.style.width = '100%';
+                        progressText.textContent = '分析完成';
+                        setStep(3);
+                        renderRunButton(false);
+                        resultSection.style.display = 'block';
+                    } else if (data.status === 'failed') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        showError(data.message || '分析失败');
+                        resetToUpload();
+                    }
+                } catch (error) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                    showError(error.message || '无法获取任务状态');
+                    resetToUpload();
+                }
+            }, 1000);
+        }
+
+        async function loadStats() {
+            try {
+                const today = await fetchJson('/api/stats/today');
+                document.getElementById('todayCount').textContent = today.analysis || 0;
+                const summary = await fetchJson('/api/stats/summary?days=7');
+                statsDetail.innerHTML = (summary.daily || []).map(item => `${item.date}：${item.analysis || 0} 次`).join('<br>') || '暂无统计数据';
+            } catch (error) {
+                statsDetail.textContent = '统计加载失败';
+            }
+        }
+
+        fileInput.addEventListener('change', e => { if (e.target.files.length > 0) handleFileSelect(e.target.files[0]); });
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); });
+        uploadArea.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files.length > 0) handleFileSelect(e.dataTransfer.files[0]); });
+        runButton.addEventListener('click', startAnalysis);
+        downloadButton.addEventListener('click', () => { if (currentTaskId) window.location.href = `/api/download/${currentTaskId}`; });
+        toggleDetail.addEventListener('click', () => { detailVisible = !detailVisible; statsDetail.style.display = detailVisible ? 'block' : 'none'; });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') resetApp(); });
+
+        renderRunButton(false);
+        loadStats();
+    </script>
+</body>
+</html>
